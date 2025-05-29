@@ -1,8 +1,8 @@
-
 {
   "name": "tennis-tournament-app",
   "version": "1.0.0",
   "private": true,
+  "proxy": "http://localhost:8000",
   "dependencies": {
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
@@ -11,5 +11,10 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^4.1.8"
   }
 }
