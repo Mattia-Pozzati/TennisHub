@@ -26,8 +26,9 @@ class Team(Base):
     __tablename__ = "teams"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
-    email = Column(String, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
     is_blocked = Column(Boolean, default=False)
+    disciplinary_actions_count = Column(Integer, default=0)
 
 class Player(Base):
     __tablename__ = "players"
@@ -57,6 +58,7 @@ class Tournament(Base):
     min_referee_level = Column(Integer)
     status = Column(String)  # upcoming, active, completed
     court_type = Column(String)
+    spectator_count = Column(Integer, default=0)
 
 class TournamentRegistration(Base):
     __tablename__ = "tournament_registrations"
@@ -71,6 +73,37 @@ class RefereeAvailability(Base):
     tournament_id = Column(Integer, ForeignKey("tournaments.id"))
     referee_id = Column(Integer, ForeignKey("referees.id"))
     is_available = Column(Boolean, default=True)
+
+class MatchPhase(str, enum.Enum):
+    FINAL = "FINAL"
+    SEMIFINAL = "SEMIFINAL"
+    QUARTERFINAL = "QUARTERFINAL"
+    ROUND_OF_16 = "ROUND_OF_16"
+    ROUND_OF_32 = "ROUND_OF_32"
+    ROUND_OF_64 = "ROUND_OF_64"
+    FIRST_ROUND = "FIRST_ROUND"
+
+class Phase(Base):
+    __tablename__ = "phases"
+    id = Column(Integer, primary_key=True, index=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"))
+    name = Column(String)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+
+class Match(Base):
+    __tablename__ = "matches"
+    id = Column(Integer, primary_key=True, index=True)
+    tournament_id = Column(Integer, ForeignKey("tournaments.id"))
+    player1_id = Column(Integer, ForeignKey("players.id"))
+    player2_id = Column(Integer, ForeignKey("players.id"))
+    referee_id = Column(Integer, ForeignKey("referees.id"))
+    phase_id = Column(Integer, ForeignKey("phases.id"))
+    winner_id = Column(Integer, ForeignKey("players.id"), nullable=True)
+    match_date = Column(DateTime)
+    court_number = Column(Integer)
+    score = Column(String, nullable=True)
+    status = Column(String)  # scheduled, in_progress, completed
 
 # Dependency
 
