@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Team, Player, Referee, Tournament, Match } from '../types';
+import { Team, Player, Referee, Tournament, Match } from '../types/interfaces';
 
 interface ApiContextType {
   // State

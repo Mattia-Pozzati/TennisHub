@@ -256,6 +256,55 @@ def register_player(player: PlayerCreate, db: Session = Depends(get_db)):
     db.refresh(db_player)
     return db_player
 
+@app.get("/api/players/rankings", response_model=List[PlayerRanking])
+def get_player_rankings(
+    court_type: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Retrieve a list of all players sorted by their scores in descending order.
+    Can be filtered by court type.
+    """
+    # Base query to get all players with their team names
+    query = db.query(Player, Team.name.label('team_name')) \
+              .outerjoin(Team, Player.team_id == Team.id)
+
+    # If court_type is specified, filter by completed matches in that court type
+    if court_type is not None:
+        # Get player IDs who have completed matches in the specified court type
+        player_ids = db.query(Player.id) \
+            .join(TournamentRegistration, Player.id == TournamentRegistration.player_id) \
+            .join(Tournament, TournamentRegistration.tournament_id == Tournament.id) \
+            .filter(Tournament.court_type == court_type, Tournament.status == 'completed') \
+            .distinct() \
+            .all()
+        
+        if player_ids:
+            # Filter players to only those who have matches in the specified court type
+            query = query.filter(Player.id.in_([p[0] for p in player_ids]))
+        else:
+            # If no players found for this court type, return empty list
+            return []
+
+    # Order by score descending
+    query = query.order_by(Player.score.desc())
+
+    results = query.all()
+    
+    rankings = []
+    for rank, (player, team_name) in enumerate(results, 1):
+        rankings.append(PlayerRanking(
+            id=player.id,
+            name=player.name,
+            level=player.level,
+            score=player.score,
+            team_id=player.team_id,
+            team_name=team_name or "N/A",
+            ranking=rank
+        ))
+    
+    return rankings
+
 @app.get("/api/players/{player_id}", response_model=PlayerResponse)
 def get_player_profile(player_id: int, db: Session = Depends(get_db)):
     player = db.query(Player).filter(Player.id == player_id).first()
@@ -370,6 +419,17 @@ def unblock_team(team_id: int, db: Session = Depends(get_db)):
     db.refresh(team)
     return {"message": f"Team {team.name} has been unblocked and disciplinary actions reset."}
 
+@app.post("/api/teams/{team_id}/block")
+def block_team(team_id: int, db: Session = Depends(get_db)):
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    team.is_blocked = True
+    db.add(team)
+    db.commit()
+    db.refresh(team)
+    return {"message": f"Team {team.name} has been blocked."}
+
 # Get team players
 @app.get("/api/teams/{team_id}/players")
 def get_team_players(team_id: int, db: Session = Depends(get_db)):
@@ -448,6 +508,18 @@ def get_tournament_players(tournament_id: int, db: Session = Depends(get_db)):
     
     return registered_players
 
+@app.delete("/api/tournaments/{tournament_id}/players/{player_id}")
+def remove_player_from_tournament(tournament_id: int, player_id: int, db: Session = Depends(get_db)):
+    registration = db.query(TournamentRegistration).filter(
+        TournamentRegistration.tournament_id == tournament_id,
+        TournamentRegistration.player_id == player_id
+    ).first()
+    if not registration:
+        raise HTTPException(status_code=404, detail="Player not registered for this tournament")
+    db.delete(registration)
+    db.commit()
+    return {"message": "Player removed from tournament"}
+
 @app.get("/api/referees")
 def get_referees(db: Session = Depends(get_db)):
     referees = db.query(Referee).all()
@@ -459,6 +531,30 @@ def get_referee_profile(referee_id: int, db: Session = Depends(get_db)):
     if not referee:
         raise HTTPException(status_code=404, detail="Referee not found")
     return referee
+
+@app.delete("/api/referees/{referee_id}")
+def delete_referee(referee_id: int, db: Session = Depends(get_db)):
+    referee = db.query(Referee).filter(Referee.id == referee_id).first()
+    if not referee:
+        raise HTTPException(status_code=404, detail="Referee not found")
+    db.delete(referee)
+    db.commit()
+    return {"message": f"Referee {referee_id} deleted"}
+
+from pydantic import BaseModel
+class RefereeScoreUpdate(BaseModel):
+    score: int
+
+@app.put("/api/referees/{referee_id}/score")
+def update_referee_score(referee_id: int, score_update: RefereeScoreUpdate, db: Session = Depends(get_db)):
+    referee = db.query(Referee).filter(Referee.id == referee_id).first()
+    if not referee:
+        raise HTTPException(status_code=404, detail="Referee not found")
+    referee.score = score_update.score
+    db.add(referee)
+    db.commit()
+    db.refresh(referee)
+    return {"message": f"Referee {referee_id} score updated", "score": referee.score}
 
 @app.post("/api/tournaments/{tournament_id}/matches")
 def create_tournament_match(tournament_id: int, match: MatchCreate, db: Session = Depends(get_db)):
@@ -609,55 +705,6 @@ def get_team_tournaments(
         
     tournaments = query.all()
     return tournaments 
-
-@app.get("/api/players/rankings", response_model=List[PlayerRanking])
-def get_player_rankings(
-    court_type: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
-):
-    """
-    Retrieve a list of all players sorted by their scores in descending order.
-    Can be filtered by court type.
-    """
-    # Base query to get all players with their team names
-    query = db.query(Player, Team.name.label('team_name')) \
-              .outerjoin(Team, Player.team_id == Team.id)
-
-    # If court_type is specified, filter by completed matches in that court type
-    if court_type is not None:
-        # Get player IDs who have completed matches in the specified court type
-        player_ids = db.query(Player.id) \
-            .join(TournamentRegistration, Player.id == TournamentRegistration.player_id) \
-            .join(Tournament, TournamentRegistration.tournament_id == Tournament.id) \
-            .filter(Tournament.court_type == court_type, Tournament.status == 'completed') \
-            .distinct() \
-            .all()
-        
-        if player_ids:
-            # Filter players to only those who have matches in the specified court type
-            query = query.filter(Player.id.in_([p[0] for p in player_ids]))
-        else:
-            # If no players found for this court type, return empty list
-            return []
-
-    # Order by score descending
-    query = query.order_by(Player.score.desc())
-
-    results = query.all()
-    
-    rankings = []
-    for rank, (player, team_name) in enumerate(results, 1):
-        rankings.append(PlayerRanking(
-            id=player.id,
-            name=player.name,
-            level=player.level,
-            score=player.score,
-            team_id=player.team_id,
-            team_name=team_name or "N/A",
-            ranking=rank
-        ))
-    
-    return rankings
 
 @app.get("/api/tournaments/history", response_model=List[TournamentResponse])
 def get_tournament_history(team_id: Optional[int] = None, db: Session = Depends(get_db)):

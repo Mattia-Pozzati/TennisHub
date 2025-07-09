@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Player, Tournament, CreateTournamentRequest, UpdateMatchResultRequest, UpdatePlayerPointsRequest } from '../types/api';
+import { Player, Tournament } from '../types/interfaces';
 
 const API_URL = 'http://localhost:8000';
 
@@ -22,23 +22,21 @@ export const createPlayer = async (playerData: Player): Promise<Player> => {
 };
 
 export const updatePlayerPoints = async (playerId: number, points: number): Promise<void> => {
-  const request: UpdatePlayerPointsRequest = { punti: points };
-  await api.put(`/giocatori/${playerId}/punti/`, request);
+  await api.put(`/giocatori/${playerId}/punti/`, { punti: points });
 };
 
 // Tournament API calls
-export const createTournament = async (tournamentData: CreateTournamentRequest): Promise<{ message: string; torneo_id: number }> => {
+export const createTournament = async (tournamentData: any): Promise<{ message: string; torneo_id: number }> => {
   const response = await api.post('/tornei/', tournamentData);
   return response.data;
 };
 
 // Match API calls
 export const updateMatchResult = async (matchId: number, score: string, winner: string): Promise<void> => {
-  const request: UpdateMatchResultRequest = {
+  await api.put(`/partite/${matchId}/risultato/`, {
     punteggio: score,
     vincitore: winner,
-  };
-  await api.put(`/partite/${matchId}/risultato/`, request);
+  });
 };
 
 export default api; 

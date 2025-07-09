@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '../context/ApiContext';
-import { Tournament, Player } from '../types';
+import { Tournament, Player } from '../types/interfaces';
 
 const CreateTournament: React.FC = () => {
   const { tournaments, loading, error, createTournament, fetchPlayers } = useApi();

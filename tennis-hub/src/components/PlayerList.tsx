@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useApi } from '../context/ApiContext';
-import { Player } from '../types';
+import { Player } from '../types/interfaces';
 
 const PlayerList: React.FC = () => {
   const { players, loading, error, fetchPlayers } = useApi();

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApi } from '../context/ApiContext';
-import { Match } from '../types';
+import { Match } from '../types/interfaces';
 
 interface TournamentMatchesProps {
   tournamentId: number;
