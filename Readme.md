@@ -1,34 +1,66 @@
-# Sito intermediario per l’organizzazione di un torneo di tennis
+# TennisHub
 
-L’obiettivo del progetto è realizzare un sistema di supporto ad un sito che funge da intermediario nell’organizzazione di tornei internazionali di tennis.
+Gestione Tornei Internazionali di Tennis
 
-Ogni Team può registrarsi al sito inserendo le proprie informazioni (nome, email). Inoltre, ogni Team può registrare un Giocatore che  parteciperà ai tornei.
+---
 
-Ogni Arbitro può registrarsi al sito inserendo le proprie informazioni (nome, cognome, codice fiscale, livello).
+## Guida d'Uso
 
-Un amministratore può creare delle inserzioni per proporre il torneo. Ogni inserzione specifica il livello minimo richiesto dai giocatori e dall’arbitro, il periodo e il tipo di campo. Per ciascun Torneo deve essere indicato il nome ufficiale e l’edizione ; questa informazione viene utilizzata dal sito per mostrare alcune informazioni aggiuntive come le classifiche delle edizioni passate.
+### 1. Requisiti
+- Python 3.8+
+- Node.js 16+
+- npm o yarn
 
-Un Team  può registrarsi al torneo; in tal caso procede all’iscrizione indicando il proprio giocatore registrato nel sito proporre per la competizione (per semplicità non viene gestito l’aspetto relativo alla gestione di pagamenti e carte di credito).
+### 2. Setup Backend (FastAPI)
 
-Un arbitro può rendersi disponibile per il torneo.
+```bash
+cd API
+python3 -m venv venv
+source venv/bin/activate
+pip install -r app/requirements.txt
+```
 
-Una volta finito il torneo, il giocatore e l’arbitro ricevono un punteggio relativo alla prestazione che sarà mostrata nel suo profilo pubblico.
+#### Creazione/Reset del database e seed dati
+```bash
+python3 -m app.seed
+```
 
-Le funzionalità offerte dalla piattaforma sono le seguenti:
+#### Avvio del server FastAPI
+```bash
+uvicorn app.main:app --reload
+```
+Il backend sarà disponibile su [http://localhost:8000](http://localhost:8000)
 
-1. ⁠Registrare un nuovo Team
-2. ⁠Iscriversi ad un torneo, inserendo il giocatore
-3. ⁠Visualizzare il profilo pubblico di ogni giocatore e arbitro registrato.
+### 3. Setup Frontend (React)
 
-Inoltre sarà possibile consultare *informazioni aggregate* relativamente ai venditori:
+```bash
+cd tennis-hub
+npm install
+npm run dev
+```
+Il frontend sarà disponibile su [http://localhost:3000](http://localhost:3000) o [http://localhost:5173](http://localhost:5173) (Vite)
 
-1. ⁠Ottenere un elenco dei dieci migliori giocatori nella classifica generale
-2. ⁠Ottenere un elenco dei dieci migliori giocatori in un tipo di campo selezionato
-3. Scoprire il torneo con più spettatori
+### 4. Credenziali di test
+- **Admin:**
+  - Email: `admin@tennishub.com`
+  - Password: `admin123`
+- **Team:**
+  - Email: `alpha@tennishub.com` / `beta@tennishub.com` / ...
+  - Password: `team123`
+- **Arbitro:**
+  - Email: `robert.wilson@tennishub.com` / ...
+  - Password: `referee123`
 
-Infine, *l’amministratore* del sito potrà:
+### 5. Funzionalità principali
+- **Admin:** crea tornei, blocca/sblocca team, gestisce arbitri, visualizza e aggiorna partite.
+- **Team:** registra nuovi giocatori, iscrive uno o più giocatori ai tornei, visualizza classifica e storico.
+- **Arbitro:** visualizza tornei.
 
-1. Registrare un torneo
-2. ⁠Ottenere una lista dei 10 migliori arbitri e associali al torneo
-3. ⁠Bloccare il profilo di un team che abbia ricevuto 3 interventi disciplinari
-4. ⁠Sbloccare il profilo di un utente bloccato
+### 6. Note utili
+- Per resettare il database, rieseguire `python3 -m app.seed`.
+- Il backend accetta richieste CORS da localhost:3000 e 5173.
+- Tutte le API sono documentate tramite FastAPI docs su [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
+
+Per dubbi o problemi, consultare la relazione (`Report.md`) o contattare gli autori.
