@@ -203,18 +203,33 @@ CREATE TABLE Tournament (
 INSERT INTO users (email, password, user_type) VALUES (?, ?, 'team');
 INSERT INTO teams (name, user_id, is_blocked, disciplinary_actions_count) VALUES (?, ?, 0, 0);
 ```
+**Analisi degli accessi:**
+- Letture: 1 (verifica unicità email)
+- Scritture: 2 (inserimento user, inserimento team)
+- Coerenza: la codebase esegue un controllo di unicità sull'email prima di inserire, e la transazione è atomica.
 
 ### 2. Registrazione di un Giocatore
 ```sql
 INSERT INTO players (name, level, score, team_id) VALUES (?, ?, 0, ?);
 ```
+**Analisi degli accessi:**
+- Letture: 1 (verifica esistenza team)
+- Scritture: 1 (inserimento player)
+- Coerenza: la codebase verifica che il team esista prima di inserire il giocatore.
 
 ### 3. Iscrizione di uno o più giocatori di un team a un torneo
 ```sql
 SELECT is_blocked FROM teams WHERE id = :team_id;
+SELECT * FROM players WHERE team_id = :team_id AND id IN (:player_ids);
+SELECT * FROM tournament_registrations WHERE tournament_id = :tournament_id AND player_id IN (:player_ids);
 INSERT INTO tournament_registrations (tournament_id, player_id, registration_date)
-VALUES (:tournament_id, :player_id, CURRENT_TIMESTAMP);
+VALUES (:tournament_id, :player_id, CURRENT_TIMESTAMP); -- ripetuto per ogni player
 ```
+**Analisi degli accessi:**
+- Letture: 3 (verifica blocco team, verifica appartenenza giocatori, verifica doppie iscrizioni)
+- Scritture: N (una per ogni giocatore iscritto)
+- Coerenza: la codebase impedisce che un giocatore sia iscritto due volte allo stesso torneo e che un team bloccato iscriva giocatori.
+- Atomicità: tutte le iscrizioni vengono eseguite in un'unica transazione.
 
 ### 4. Blocco automatico di un team dopo 3 sanzioni
 ```sql
@@ -223,6 +238,10 @@ SET disciplinary_actions_count = disciplinary_actions_count + 1,
     is_blocked = CASE WHEN disciplinary_actions_count + 1 >= 3 THEN 1 ELSE is_blocked END
 WHERE id = :team_id;
 ```
+**Analisi degli accessi:**
+- Letture: 1 (verifica esistenza team)
+- Scritture: 1 (update team)
+- Coerenza: la logica di blocco è gestita sia a livello di backend che di database.
 
 ### 5. Sblocco manuale di un team (solo admin)
 ```sql
@@ -230,11 +249,19 @@ UPDATE teams
 SET is_blocked = 0, disciplinary_actions_count = 0
 WHERE id = :team_id;
 ```
+**Analisi degli accessi:**
+- Letture: 1 (verifica esistenza team)
+- Scritture: 1 (update team)
+- Coerenza: solo l'admin può eseguire questa operazione.
 
 ### 6. Recupero dei giocatori di un team
 ```sql
 SELECT * FROM players WHERE team_id = :team_id;
 ```
+**Analisi degli accessi:**
+- Letture: 1 (query diretta)
+- Scritture: 0
+- Coerenza: nessun rischio di inconsistenza.
 
 ### 7. Recupero dei tornei disponibili
 ```sql
@@ -245,6 +272,10 @@ AND (
   WHERE tournament_id = tournaments.id
 ) < 16;
 ```
+**Analisi degli accessi:**
+- Letture: 1 (query con subquery per conteggio iscritti)
+- Scritture: 0
+- Coerenza: la codebase filtra i tornei con meno di 16 iscritti.
 
 ### 8. Classifica giocatori
 ```sql
@@ -253,6 +284,10 @@ FROM players p
 LEFT JOIN teams t ON p.team_id = t.id
 ORDER BY p.score DESC;
 ```
+**Analisi degli accessi:**
+- Letture: 1 (join e ordinamento)
+- Scritture: 0
+- Coerenza: la classifica è aggiornata in tempo reale in base ai punteggi.
 
 ### 9. Recupero partite di un torneo
 ```sql
@@ -261,6 +296,26 @@ FROM matches m
 JOIN phases ph ON m.phase_id = ph.id
 WHERE m.tournament_id = :tournament_id;
 ```
+**Analisi degli accessi:**
+- Letture: 1 (join tra match e phase)
+- Scritture: 0
+- Coerenza: nessun rischio di inconsistenza.
+
+---
+
+## Analisi della Coerenza e Atomicità
+
+- Tutte le operazioni di scrittura sono racchiuse in transazioni atomiche (commit/rollback) tramite SQLAlchemy.
+- I vincoli di integrità (foreign key, unique, not null) e i controlli applicativi (es. team bloccato, doppie iscrizioni) garantiscono la consistenza dei dati.
+- Le operazioni di iscrizione multipla (più giocatori per torneo) sono gestite in batch e falliscono tutte insieme in caso di errore.
+- Le query di sola lettura sono ottimizzate per evitare lock e non impattano sulle scritture.
+
+## Dettagli aggiuntivi utili alla relazione
+
+- **Scalabilità:** la struttura delle query e delle transazioni permette di gestire facilmente un numero elevato di iscrizioni e partite senza rischi di race condition.
+- **Performance:** le query di iscrizione e verifica sono indicizzate sulle chiavi primarie e sulle foreign key, garantendo tempi di risposta rapidi anche con molti dati.
+- **Estendibilità:** la logica di accesso è facilmente adattabile per supportare nuove regole (es. limiti diversi di iscrizione, tornei a squadre, ecc.).
+- **Sicurezza:** tutte le operazioni critiche sono protette da controlli di ruolo e da validazioni lato backend.
 
 ---
 
