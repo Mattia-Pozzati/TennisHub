@@ -180,11 +180,16 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleSaveScore = async (refereeId: number) => {
+    const score = editingScore[refereeId];
+    if (score === undefined || score === null || isNaN(score)) {
+      alert('Inserisci un punteggio valido');
+      return;
+    }
     try {
       await fetch(`${API_URL}/api/referees/${refereeId}/score`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ score: editingScore[refereeId] })
+        body: JSON.stringify({ score })
       });
       fetchReferees();
     } catch (error) {
@@ -311,10 +316,10 @@ const AdminDashboard: React.FC = () => {
                 <div>
                   <h3 className="font-medium">{team.name}</h3>
                   <p className="text-sm text-gray-600">{team.email}</p>
-                  <p className="text-sm text-gray-600">{team.isBlocked ? 'Bloccato' : 'Attivo'}</p>
+                  <p className="text-sm text-gray-600">{team.is_blocked ? 'Bloccato' : 'Attivo'}</p>
                 </div>
                 <div>
-                  {team.isBlocked ? (
+                  {team.is_blocked ? (
                     <button onClick={() => handleUnblockTeam(team.id)} className="px-2 py-1 bg-green-600 text-white rounded">Sblocca</button>
                   ) : (
                     <button onClick={() => handleBlockTeam(team.id)} className="px-2 py-1 bg-red-600 text-white rounded">Blocca</button>

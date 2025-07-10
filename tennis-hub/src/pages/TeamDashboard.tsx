@@ -11,11 +11,14 @@ const TeamDashboard: React.FC = () => {
   const [registerError, setRegisterError] = useState<string | null>(null);
   const [tournamentMatches, setTournamentMatches] = useState<{ [tournamentId: number]: TournamentMatchesResponse }>({});
   const [playerRankings, setPlayerRankings] = useState<PlayerRanking[]>([]);
+  const [isBlocked, setIsBlocked] = useState<boolean>(false);
+  const [selectedPlayers, setSelectedPlayers] = useState<{ [tournamentId: number]: number[] }>({});
 
   useEffect(() => {
     fetchPlayers();
     fetchTournaments();
     fetchPlayerRankings();
+    fetchTeamStatus();
   }, []);
 
   const fetchPlayers = async () => {
@@ -69,13 +72,25 @@ const TeamDashboard: React.FC = () => {
     }
   };
 
+  const handlePlayerCheckbox = (tournamentId: number, playerId: number) => {
+    setSelectedPlayers(prev => {
+      const current = prev[tournamentId] || [];
+      if (current.includes(playerId)) {
+        return { ...prev, [tournamentId]: current.filter(id => id !== playerId) };
+      } else {
+        return { ...prev, [tournamentId]: [...current, playerId] };
+      }
+    });
+  };
+
   const handleRegisterTournament = async (tournamentId: number) => {
     setRegistering(tournamentId);
     setRegisterError(null);
     try {
       const teamId = localStorage.getItem('team_id');
       if (!teamId) throw new Error('Nessun team_id trovato');
-      const playerIds = players.map(p => p.id);
+      const playerIds = selectedPlayers[tournamentId] || [];
+      if (playerIds.length === 0) throw new Error('Seleziona almeno un giocatore da iscrivere');
       const response = await fetch(`${API_URL}/api/tournaments/${tournamentId}/register-team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,6 +115,19 @@ const TeamDashboard: React.FC = () => {
       setPlayerRankings(data);
     } catch (error) {
       console.error('Error fetching player rankings:', error);
+    }
+  };
+
+  const fetchTeamStatus = async () => {
+    const teamId = localStorage.getItem('team_id');
+    if (!teamId) return;
+    try {
+      const response = await fetch(`${API_URL}/api/teams`);
+      const data = await response.json();
+      const team = data.find((t: any) => t.id === parseInt(teamId));
+      if (team) setIsBlocked(team.is_blocked);
+    } catch (error) {
+      console.error('Error fetching team status:', error);
     }
   };
 
@@ -163,19 +191,38 @@ const TeamDashboard: React.FC = () => {
         {/* Upcoming Tournaments */}
         <div className="bg-white p-6 rounded-lg shadow mb-8">
           <h2 className="text-xl font-semibold mb-4">Prossimi Tornei</h2>
+          {isBlocked && (
+            <div className="text-red-600 mb-2">Il tuo team è bloccato e non può iscriversi a nuovi tornei.</div>
+          )}
           <div className="space-y-4">
             {upcomingTournaments.length === 0 && <div className="text-gray-500">Nessun torneo disponibile.</div>}
             {upcomingTournaments.map(tournament => (
-              <div key={tournament.id} className="p-4 border rounded-md flex items-center justify-between">
+              <div key={tournament.id} className="p-4 border rounded-md flex flex-col md:flex-row md:items-center md:justify-between">
                 <div>
                   <h3 className="font-medium">{tournament.name}</h3>
                   <p className="text-sm text-gray-600">Edition: {tournament.edition}</p>
                   <p className="text-sm text-gray-600">{new Date(tournament.start_date).toLocaleDateString()} - {new Date(tournament.end_date).toLocaleDateString()}</p>
+                  <div className="mt-2">
+                    <span className="font-semibold">Seleziona giocatori da iscrivere:</span>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {players.map(player => (
+                        <label key={player.id} className="flex items-center space-x-1">
+                          <input
+                            type="checkbox"
+                            checked={selectedPlayers[tournament.id]?.includes(player.id) || false}
+                            onChange={() => handlePlayerCheckbox(tournament.id, player.id)}
+                            disabled={isBlocked}
+                          />
+                          <span>{player.name} (Livello: {player.level})</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <button
                   onClick={() => handleRegisterTournament(tournament.id)}
-                  disabled={registering === tournament.id}
-                  className="ml-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                  disabled={registering === tournament.id || isBlocked}
+                  className="mt-4 md:mt-0 ml-0 md:ml-2 px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
                 >
                   {registering === tournament.id ? 'Iscrizione...' : 'Iscriviti'}
                 </button>

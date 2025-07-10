@@ -648,6 +648,13 @@ def register_team_for_tournament(tournament_id: int, registration: TeamTournamen
     if not tournament:
         raise HTTPException(status_code=404, detail="Tournament not found")
     
+    # Check if team is blocked
+    team = db.query(Team).filter(Team.id == registration.team_id).first()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if team.is_blocked:
+        raise HTTPException(status_code=403, detail="Il team è bloccato e non può iscriversi a nuovi tornei.")
+    
     # Verify all players belong to the team
     team_players = db.query(Player).filter(
         Player.team_id == registration.team_id,

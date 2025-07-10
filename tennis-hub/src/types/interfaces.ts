@@ -13,7 +13,7 @@ export interface Team {
   id: number;
   name: string;
   email: string;
-  isBlocked?: boolean;
+  is_blocked: boolean;
 }
 
 export interface Referee {
